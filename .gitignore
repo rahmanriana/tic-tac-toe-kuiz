@@ -8,6 +8,9 @@ pnpm-debug.log*
 # Dependencies
 **/node_modules
 
+# Keep backend in separate repo (prevents nested git repo/submodule issues)
+tictactoe-backend/
+
 # Build output
 **/dist
 **/dist-ssr
