@@ -39,6 +39,20 @@ body {
   font-size: 1rem;
 }
 
+/* Ensure btn-* classes are usable without also adding .btn */
+.btn-primary,
+.btn-secondary,
+.btn-success,
+.btn-danger {
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  transition: all 0.2s;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
 .btn-primary {
   background: var(--primary);
   color: white;
@@ -258,6 +272,29 @@ body {
 .shadow-2xl { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); }
 
 .inline-block { display: inline-block; }
+
+/* Component overrides */
+.board-grid {
+  /* Keep it inside its parent (Game page has padding on mobile). */
+  max-width: 100%;
+}
+
+@media (max-width: 640px) {
+  /* Make touch targets bigger on phones */
+  .btn-primary,
+  .btn-secondary,
+  .btn-success,
+  .btn-danger {
+    padding: 0.75rem 1rem;
+    font-size: 1.05rem;
+  }
+
+  /* Reduce board padding/gap so 3x3 never overflows */
+  .board-grid {
+    gap: 0.25rem;
+    padding: 0.25rem;
+  }
+}
 .w-8 { width: 2rem; }
 .h-8 { height: 2rem; }
 .mr-2 { margin-right: 0.5rem; }
