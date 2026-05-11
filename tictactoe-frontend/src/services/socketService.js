@@ -2,29 +2,38 @@ import socket from '../socket/index';
 
 export const roomService = {
   createRoom: (theme, playerName) => {
+    if (!socket.connected) {
+      return Promise.reject(new Error('Tidak terhubung ke server. Pastikan backend berjalan dan refresh halaman.'));
+    }
+
     return new Promise((resolve, reject) => {
       try {
         console.log('Emitting create-room:', { theme, playerName });
         socket.emit('create-room', { theme, playerName });
         
-        const timeout = setTimeout(() => {
-          console.log('Create room timeout');
-          socket.off('room-created');
-          socket.off('error');
-          reject(new Error('Create room timeout - please check your connection'));
-        }, 5000);
-
-        socket.once('room-created', (data) => {
+        const handleRoomCreated = (data) => {
           console.log('Received room-created:', data);
           clearTimeout(timeout);
+          socket.off('error', handleError);
           resolve(data);
-        });
+        };
 
-        socket.once('error', (error) => {
+        const handleError = (error) => {
           console.log('Received error:', error);
           clearTimeout(timeout);
-          reject(new Error(error.message || 'Failed to create room'));
-        });
+          socket.off('room-created', handleRoomCreated);
+          reject(new Error(error.message || 'Gagal membuat room'));
+        };
+
+        const timeout = setTimeout(() => {
+          console.log('Create room timeout');
+          socket.off('room-created', handleRoomCreated);
+          socket.off('error', handleError);
+          reject(new Error('Timeout membuat room. Periksa koneksi internet dan coba lagi.'));
+        }, 5000);
+
+        socket.once('room-created', handleRoomCreated);
+        socket.once('error', handleError);
       } catch (error) {
         console.error('Socket emit error:', error);
         reject(new Error('Connection error'));
@@ -33,29 +42,38 @@ export const roomService = {
   },
 
   joinRoom: (roomCode, playerName) => {
+    if (!socket.connected) {
+      return Promise.reject(new Error('Tidak terhubung ke server. Pastikan backend berjalan dan refresh halaman.'));
+    }
+
     return new Promise((resolve, reject) => {
       try {
         console.log('Emitting join-room:', { roomCode, playerName });
         socket.emit('join-room', { roomCode, playerName });
         
-        const timeout = setTimeout(() => {
-          console.log('Join room timeout');
-          socket.off('room-joined');
-          socket.off('error');
-          reject(new Error('Join room timeout - please check room code and connection'));
-        }, 5000);
-
-        socket.once('room-joined', (data) => {
+        const handleRoomJoined = (data) => {
           console.log('Received room-joined:', data);
           clearTimeout(timeout);
+          socket.off('error', handleError);
           resolve(data);
-        });
+        };
 
-        socket.once('error', (error) => {
+        const handleError = (error) => {
           console.log('Received error:', error);
           clearTimeout(timeout);
-          reject(new Error(error.message || 'Failed to join room'));
-        });
+          socket.off('room-joined', handleRoomJoined);
+          reject(new Error(error.message || 'Gagal bergabung room'));
+        };
+
+        const timeout = setTimeout(() => {
+          console.log('Join room timeout');
+          socket.off('room-joined', handleRoomJoined);
+          socket.off('error', handleError);
+          reject(new Error('Timeout bergabung room. Periksa kode room dan koneksi internet.'));
+        }, 5000);
+
+        socket.once('room-joined', handleRoomJoined);
+        socket.once('error', handleError);
       } catch (error) {
         console.error('Socket emit error:', error);
         reject(new Error('Connection error'));
@@ -82,21 +100,26 @@ export const gameService = {
     return new Promise((resolve, reject) => {
       socket.emit('start-game', { roomCode });
       
+      const handleGameStarted = (data) => {
+        clearTimeout(timeout);
+        socket.off('error', handleError);
+        resolve(data);
+      };
+
+      const handleError = (error) => {
+        clearTimeout(timeout);
+        socket.off('game-started', handleGameStarted);
+        reject(error);
+      };
+
       const timeout = setTimeout(() => {
-        socket.off('game-started');
-        socket.off('error');
-        reject(new Error('Start game timeout'));
+        socket.off('game-started', handleGameStarted);
+        socket.off('error', handleError);
+        reject(new Error('Timeout memulai game. Periksa koneksi internet.'));
       }, 5000);
 
-      socket.once('game-started', (data) => {
-        clearTimeout(timeout);
-        resolve(data);
-      });
-
-      socket.once('error', (error) => {
-        clearTimeout(timeout);
-        reject(error);
-      });
+      socket.once('game-started', handleGameStarted);
+      socket.once('error', handleError);
     });
   },
 

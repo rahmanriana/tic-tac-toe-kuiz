@@ -11,15 +11,8 @@ export const Cell = ({ position, value, onClick, disabled }) => {
     <button
       onClick={() => onClick(position)}
       disabled={disabled || value !== null}
-      style={{ aspectRatio: '1 / 1', fontSize: 'clamp(1.5rem, 9vw, 2.25rem)' }}
-      className={`
-        w-full border-2 border-gray-300 rounded-lg
-        flex items-center justify-center font-bold
-        transition-all duration-200 cursor-pointer
-        ${value ? getSymbolColor(value) : 'hover:bg-gray-100'}
-        ${disabled || value !== null ? 'cursor-not-allowed opacity-75' : ''}
-        bg-white
-      `}
+      className={`board-cell ${value ? getSymbolColor(value) : ''} ${disabled || value !== null ? 'disabled' : ''}`}
+      style={{ fontSize: 'clamp(2rem, 4vw, 3.5rem)' }}
     >
       {value}
     </button>

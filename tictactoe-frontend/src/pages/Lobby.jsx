@@ -1,37 +1,52 @@
-import React, { useState, useEffect } from 'react';
-import socket from '../socket/index';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { roomService } from '../services/socketService';
 
-export const Lobby = ({ onRoomCreated, onRoomJoined }) => {
-  const [playerName, setPlayerName] = useState('');
-  const [theme, setTheme] = useState('nasionalisme');
+export const Lobby = ({ userName, onRoomCreated, onRoomJoined }) => {
+  const [playerName, setPlayerName] = useState(userName || '');
+  const [selectedTheme, setSelectedTheme] = useState('umum');
   const [roomCode, setRoomCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [rooms, setRooms] = useState([]);
-  const [showJoinRoom, setShowJoinRoom] = useState(false);
+  const [tab, setTab] = useState('create'); // 'create' | 'join'
+  const navigate = useNavigate();
 
-  const themes = ['nasionalisme', 'umum', 'politik', 'sejarah', 'teknologi', 'olahraga'];
+  const themes = useMemo(
+    () => [
+      { id: 'nasionalisme', name: 'Nasionalisme', emoji: '🇮🇩' },
+      { id: 'teknologi', name: 'Teknologi', emoji: '💻' },
+      { id: 'sejarah', name: 'Sejarah', emoji: '📚' },
+      { id: 'politik', name: 'Politik', emoji: '🏛️' },
+      { id: 'umum', name: 'Umum', emoji: '🌍' }
+    ],
+    []
+  );
 
   useEffect(() => {
-    loadRooms();
-    const interval = setInterval(loadRooms, 3000);
+    if (userName) setPlayerName(userName);
+  }, [userName]);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const roomsList = await roomService.getRooms();
+        setRooms(roomsList || []);
+      } catch (err) {
+        // non-blocking
+        console.error('Error loading rooms:', err);
+      }
+    };
+
+    load();
+    const interval = setInterval(load, 3000);
     return () => clearInterval(interval);
   }, []);
-
-  const loadRooms = async () => {
-    try {
-      const roomsList = await roomService.getRooms();
-      setRooms(roomsList || []);
-    } catch (err) {
-      console.error('Error loading rooms:', err);
-    }
-  };
 
   const handleCreateRoom = async (e) => {
     e.preventDefault();
     if (!playerName.trim()) {
-      setError('Please enter your name');
+      setError('Nama pemain harus diisi');
       return;
     }
 
@@ -39,13 +54,10 @@ export const Lobby = ({ onRoomCreated, onRoomJoined }) => {
     setError('');
 
     try {
-      console.log('Creating room with:', { theme, playerName });
-      const result = await roomService.createRoom(theme, playerName);
-      console.log('Room creation result:', result);
+      const result = await roomService.createRoom(selectedTheme, playerName.trim());
       onRoomCreated(result);
     } catch (err) {
-      console.error('Failed to create room:', err);
-      setError(err.message || 'Failed to create room');
+      setError(err.message || 'Gagal membuat room');
       setLoading(false);
     }
   };
@@ -53,11 +65,11 @@ export const Lobby = ({ onRoomCreated, onRoomJoined }) => {
   const handleJoinRoom = async (e) => {
     e.preventDefault();
     if (!playerName.trim()) {
-      setError('Please enter your name');
+      setError('Nama pemain harus diisi');
       return;
     }
     if (!roomCode.trim()) {
-      setError('Please enter room code');
+      setError('Kode room harus diisi');
       return;
     }
 
@@ -65,13 +77,10 @@ export const Lobby = ({ onRoomCreated, onRoomJoined }) => {
     setError('');
 
     try {
-      console.log('Joining room with:', { roomCode, playerName });
-      const result = await roomService.joinRoom(roomCode, playerName);
-      console.log('Room join result:', result);
+      const result = await roomService.joinRoom(roomCode.trim(), playerName.trim());
       onRoomJoined(result);
     } catch (err) {
-      console.error('Failed to join room:', err);
-      setError(err.message || 'Failed to join room');
+      setError(err.message || 'Gagal bergabung room');
       setLoading(false);
     }
   };
@@ -79,153 +88,259 @@ export const Lobby = ({ onRoomCreated, onRoomJoined }) => {
   const handleJoinFromList = async (code) => {
     setRoomCode(code);
     if (!playerName.trim()) {
-      setError('Please enter your name first');
+      setError('Nama pemain harus diisi terlebih dahulu');
       return;
     }
-
     setLoading(true);
     setError('');
 
     try {
-      const result = await roomService.joinRoom(code, playerName);
+      const result = await roomService.joinRoom(code, playerName.trim());
       onRoomJoined(result);
     } catch (err) {
-      setError(err.message || 'Failed to join room');
+      setError(err.message || 'Gagal bergabung room');
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center p-4">
-      <div className="card max-w-md w-full">
-        <h1 className="text-4xl font-bold mb-8 text-center text-purple-600">
-          🎮 Tic-Tac-Toe Quiz
-        </h1>
+    <div className="lobby-page min-h-screen bg-gradient-to-br from-purple-600 via-indigo-500 to-blue-500 relative">
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <div
+          className="absolute rounded-full"
+          style={{
+            top: '-5rem',
+            left: '-5rem',
+            width: '28rem',
+            height: '28rem',
+            background: 'rgba(147, 51, 234, 0.45)',
+            filter: 'blur(64px)',
+            opacity: 0.55,
+            mixBlendMode: 'multiply',
+            animation: 'float 7s ease-in-out infinite'
+          }}
+        />
+        <div
+          className="absolute rounded-full"
+          style={{
+            bottom: '-7rem',
+            right: '-5rem',
+            width: '28rem',
+            height: '28rem',
+            background: 'rgba(59, 130, 246, 0.45)',
+            filter: 'blur(64px)',
+            opacity: 0.55,
+            mixBlendMode: 'multiply',
+            animation: 'float 7s ease-in-out infinite 2s'
+          }}
+        />
+      </div>
 
-        
+      <style>{`
+        @keyframes float {
+          0%, 100% { transform: translate(0, 0); }
+          50% { transform: translate(30px, 30px); }
+        }
+      `}</style>
+
+      <div className="page-shell relative z-10">
+        <button
+          onClick={() => navigate('/')}
+          className="mb-5 inline-flex items-center gap-2 text-white transition-colors text-base font-extrabold"
+          style={{
+            padding: '0.6rem 1rem',
+            borderRadius: '999px',
+            background: 'rgba(255,255,255,0.18)',
+            border: '1px solid rgba(255,255,255,0.22)'
+          }}
+        >
+          ← Back
+        </button>
+
+        <div className="mb-6">
+          <h1 className="text-4xl md:text-5xl font-black text-white">Room Lobby</h1>
+          <p className="text-slate-200/80 mt-2">Create room atau join room untuk mulai bermain.</p>
+        </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-100 text-red-800 rounded-lg">
-            {error}
+          <div className="mb-6 p-4 rounded-2xl bg-red-500/20 border border-red-400/30 text-red-50 flex items-center gap-3">
+            <span className="text-lg">⚠️</span>
+            <p>{error}</p>
           </div>
         )}
 
-        <form onSubmit={handleCreateRoom} className="space-y-4 mb-6">
-          <div>
-            <label className="block text-sm font-semibold mb-2">Your Name</label>
+        <div className="glass-card glass-panel max-w-3xl mx-auto" style={{ background: 'rgba(15,23,42,0.55)' }}>
+          <div className="flex gap-2 mb-6">
+            <button
+              onClick={() => setTab('create')}
+              className="flex-1 py-3 rounded-2xl font-extrabold transition-all border"
+              style={{
+                background:
+                  tab === 'create'
+                    ? 'linear-gradient(90deg, rgba(168,85,247,0.95), rgba(99,102,241,0.95), rgba(59,130,246,0.95))'
+                    : 'rgba(255,255,255,0.10)',
+                borderColor: tab === 'create' ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.18)',
+                color: 'white'
+              }}
+            >
+              + Create
+            </button>
+            <button
+              onClick={() => setTab('join')}
+              className="flex-1 py-3 rounded-2xl font-extrabold transition-all border"
+              style={{
+                background:
+                  tab === 'join'
+                    ? 'linear-gradient(90deg, rgba(168,85,247,0.95), rgba(99,102,241,0.95), rgba(59,130,246,0.95))'
+                    : 'rgba(255,255,255,0.10)',
+                borderColor: tab === 'join' ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.18)',
+                color: 'white'
+              }}
+            >
+              🔗 Join
+            </button>
+          </div>
+
+          {/* Shared: player name */}
+          <div className="mb-4">
+            <label className="block text-sm font-bold text-white/80 mb-2 uppercase tracking-wider">
+              Player Name
+            </label>
             <input
               type="text"
               value={playerName}
               onChange={(e) => setPlayerName(e.target.value)}
-              placeholder="Enter your name"
-              className="input"
+              placeholder="Masukkan nama pemain..."
+              className="w-full input"
               disabled={loading}
             />
           </div>
-          
-          {!showJoinRoom && (
-            <>
-              <div>
-                <label className="block text-sm font-semibold mb-2">Select Theme</label>
-                <select
-                  value={theme}
-                  onChange={(e) => setTheme(e.target.value)}
-                  className="input"
-                  disabled={loading}
-                >
-                  {themes.map((t) => (
-                    <option key={t} value={t}>
-                      {t.charAt(0).toUpperCase() + t.slice(1)}
-                    </option>
+
+          {tab === 'create' && (
+            <form onSubmit={handleCreateRoom}>
+              <div className="mb-4">
+                <label className="block text-sm font-bold text-white/80 mb-2 uppercase tracking-wider">
+                  Select Theme (Host)
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {themes.map((thm) => (
+                    <button
+                      type="button"
+                      key={thm.id}
+                      onClick={() => setSelectedTheme(thm.id)}
+                      className="p-4 rounded-2xl border text-left transition-all"
+                      style={{
+                        background: selectedTheme === thm.id ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.10)',
+                        borderColor:
+                          selectedTheme === thm.id ? 'rgba(34,211,238,0.75)' : 'rgba(255,255,255,0.20)',
+                        boxShadow:
+                          selectedTheme === thm.id ? '0 0 0 3px rgba(34,211,238,0.18)' : 'none',
+                        color: 'white'
+                      }}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="font-extrabold text-white">
+                            {selectedTheme === thm.id ? '✅ ' : ''}
+                            {thm.name}
+                          </p>
+                          <p className="text-xs text-slate-200/80 mt-1">Tema quiz untuk game</p>
+                        </div>
+                        <div className="text-2xl">{thm.emoji}</div>
+                      </div>
+                    </button>
                   ))}
-                </select>
+                </div>
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="btn-primary w-full"
+                className="w-full py-4 px-5 rounded-2xl text-white font-extrabold text-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                style={{
+                  background: 'linear-gradient(90deg, #a855f7, #6366f1, #3b82f6)',
+                  border: '1px solid rgba(255,255,255,0.35)',
+                  boxShadow:
+                    '0 18px 40px rgba(59,130,246,0.35), 0 0 0 4px rgba(255,255,255,0.06)'
+                }}
               >
-                {loading ? 'Creating...' : '➕ Create Room'}
+                {loading ? 'Creating...' : 'Create Room'}
               </button>
-
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-300"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-white">or</span>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setShowJoinRoom(true)}
-                className="btn-secondary w-full"
-              >
-                🔗 Join Room
-              </button>
-            </>
+            </form>
           )}
 
-          {showJoinRoom && (
-            <>
-              <div>
-                <label className="block text-sm font-semibold mb-2">Room Code</label>
+          {tab === 'join' && (
+            <form onSubmit={handleJoinRoom}>
+              <div className="mb-4">
+                <label className="block text-sm font-bold text-white/80 mb-2 uppercase tracking-wider">
+                  Room Code
+                </label>
                 <input
                   type="text"
                   value={roomCode}
                   onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-                  placeholder="Enter room code (e.g., ABC123)"
-                  className="input"
+                  placeholder="Masukkan kode room (contoh: ABC123)"
+                  className="w-full input font-mono text-lg tracking-widest"
                   disabled={loading}
-                  maxLength="6"
                 />
               </div>
 
               <button
-                type="button"
-                onClick={handleJoinRoom}
+                type="submit"
                 disabled={loading}
-                className="btn-primary w-full"
-              >
-                {loading ? 'Joining...' : '✅ Join Room'}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setShowJoinRoom(false);
-                  setRoomCode('');
+                className="w-full py-4 px-5 rounded-2xl text-white font-extrabold text-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                style={{
+                  background: 'linear-gradient(90deg, #a855f7, #6366f1, #3b82f6)',
+                  border: '1px solid rgba(255,255,255,0.35)',
+                  boxShadow:
+                    '0 18px 40px rgba(59,130,246,0.35), 0 0 0 4px rgba(255,255,255,0.06)'
                 }}
-                className="btn-secondary w-full"
               >
-                ← Back
+                {loading ? 'Joining...' : 'Join Room'}
               </button>
-            </>
-          )}
-        </form>
 
-        {rooms.length > 0 && !showJoinRoom && (
-          <div className="mt-8 pt-8 border-t border-gray-300">
-            <h3 className="font-semibold mb-4">Available Rooms</h3>
-            <div className="space-y-2 max-h-40 overflow-y-auto">
-              {rooms.map((room) => (
-                <button
-                  key={room.roomCode}
-                  onClick={() => handleJoinFromList(room.roomCode)}
-                  disabled={loading}
-                  className="w-full text-left p-3 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                >
-                  <div className="font-semibold">{room.roomCode}</div>
-                  <div className="text-sm text-gray-600">
-                    {room.host} • {room.theme} • {room.playerCount}/{room.maxPlayers}
+              {/* Available rooms */}
+              <div className="mt-6">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm font-bold text-white/90 uppercase tracking-wider">Rooms</p>
+                  <p className="text-xs text-slate-200/70">{rooms.length} tersedia</p>
+                </div>
+
+                {rooms.length === 0 ? (
+                  <div className="p-6 rounded-2xl bg-white/5 text-center text-slate-200/80">
+                    Belum ada room tersedia.
                   </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+                ) : (
+                  <div className="space-y-3">
+                    {rooms.map((room) => (
+                      <button
+                        type="button"
+                        key={room.roomCode}
+                        onClick={() => handleJoinFromList(room.roomCode)}
+                        disabled={loading}
+                        className="w-full p-4 rounded-2xl bg-white/8 hover:bg-white/12 border border-white/15 hover:border-white/25 transition-all text-left disabled:opacity-60"
+                      >
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="min-w-0">
+                            <p className="font-extrabold text-white">Code: {room.roomCode}</p>
+                            <p className="text-sm text-slate-200/70 mt-1">Host: {room.host}</p>
+                          </div>
+                          <div className="text-xl">🎮</div>
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-slate-200/70 mt-3">
+                          <span>Tema: {room.theme}</span>
+                          <span>
+                            {room.playerCount}/{room.maxPlayers} pemain
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </form>
+          )}
+        </div>
       </div>
     </div>
   );
